@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ルーレット</title>
+  <style>
+    :root{
+      --bg:#f7f7f7;
+      --panel:#fff;
+      --shadow:0 10px 24px rgba(0,0,0,.12);
+      --radius:22px;
+
+      --reel-h:400px;  /* 1コマの高さ */
+      --reel-w:280px;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, "Noto Sans JP", sans-serif;
+      background:var(--bg);
+      color:#111;
+      min-height:100vh;
+    }
+    .wrap{max-width:880px;margin:0 auto;padding:20px;}
+    .panel{
+      background:var(--panel);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:24px 20px 28px;
+    }
+
+    /* モードタブ */
+    .modes{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      margin-bottom:18px;
+    }
+    .modes button{
+      border:0;
+      background:#eee;
+      color:#555;
+      padding:10px 22px;
+      border-radius:999px;
+      font-size:18px;
+      font-weight:900;
+      cursor:pointer;
+      transition:background .18s, color .18s, transform .12s;
+    }
+    .modes button.active{background:#111;color:#fff;}
+    .modes button:active{transform:scale(.96);}
+
+    /* メイン表示エリア */
+    .stage{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      gap:30px;
+      min-height:var(--reel-h);
+      margin:10px 0 20px;
+    }
+
+    /* リール枠 */
+    .reel{
+      flex:0 0 auto;
+      width:var(--reel-w);
+      height:var(--reel-h);
+      background:#fffbe6;
+      border-radius:24px;
+      box-shadow:inset 0 0 0 6px #ffd166, 0 8px 20px rgba(0,0,0,.08);
+      overflow:hidden;
+      position:relative;
+      transition: box-shadow .5s ease;
+    }
+    /* 確定時のフラッシュ：枠が金色に光る */
+    .reel.flash{
+      box-shadow:
+        inset 0 0 0 6px #ffb700,
+        0 0 0 8px rgba(255, 213, 79, .55),
+        0 0 60px 10px rgba(255, 200, 0, .55);
+    }
+    /* キラキラ（確定時に飛ぶ） */
+    .sparkles{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index:3;
+    }
+    .spark{
+      position:absolute;
+      left:50%; top:50%;
+      width:14px; height:14px;
+      background:#ffd700;
+      border-radius:50%;
+      transform:translate(-50%,-50%);
+      box-shadow:0 0 14px 4px rgba(255,215,0,.9);
+      opacity:0;
+    }
+    .reel.flash .spark{
+      animation: sparkFly .7s ease-out forwards;
+    }
+    @keyframes sparkFly{
+      0%{
+        opacity:1;
+        transform: translate(-50%,-50%) scale(.6);
+      }
+      100%{
+        opacity:0;
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.2);
+      }
+    }
+    /* リール内に縦長のトラックを置く */
+    .reel-track{
+      position:absolute;
+      top:0;
+      left:0;
+      width:100%;
+      will-change: transform;
+    }
+    .reel-cell{
+      width:100%;
+      height:var(--reel-h);
+      display:grid;
+      place-items:center;
+      font-size:260px;
+      font-weight:950;
+      line-height:1;
+      color:#333;
+      font-variant-numeric: tabular-nums;
+      user-select:none;
+    }
+    /* 上下に薄いグラデで「リール感」 */
+    .reel::before, .reel::after{
+      content:"";
+      position:absolute;
+      left:0; right:0;
+      height:70px;
+      pointer-events:none;
+      z-index:2;
+    }
+    .reel::before{
+      top:0;
+      background:linear-gradient(to bottom, rgba(255,251,230,.95), rgba(255,251,230,0));
+    }
+    .reel::after{
+      bottom:0;
+      background:linear-gradient(to top, rgba(255,251,230,.95), rgba(255,251,230,0));
+    }
+    .reel .placeholder{
+      position:absolute;inset:0;
+      display:grid;place-items:center;
+      font-size:260px;font-weight:950;color:#ddd;
+      user-select:none;
+    }
+
+    /* 画像エリア（リール式） */
+    .imgBox{
+      flex:0 0 auto;
+      width:210px;
+      height:400px;
+      background:#eef6ff;
+      border-radius:24px;
+      box-shadow:inset 0 0 0 6px #b8d8ff, 0 8px 20px rgba(0,0,0,.08);
+      position:relative;
+      overflow:hidden;
+      opacity:0;
+      transform:translateY(8px) scale(.97);
+      transition:opacity .25s ease, transform .25s ease;
+      pointer-events:none;
+    }
+    .imgBox.show{
+      opacity:1;
+      transform:translateY(0) scale(1);
+    }
+    .imgPlaceholder{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      font-size:200px;
+      font-weight:950;
+      color:#d4dde6;
+      user-select:none;
+      pointer-events:none;
+    }
+    .imgTrack{
+      position:absolute;
+      top:0;
+      left:0;
+      width:100%;
+      will-change: transform;
+    }
+    .imgCell{
+      width:100%;
+      height:400px;  /* リール枠と同じ高さ */
+      display:grid;
+      place-items:center;
+      padding:18px 14px;
+    }
+    .imgCell img{
+      max-width:100%;
+      max-height:100%;
+      width:auto;
+      height:100%;
+      object-fit:contain;
+      display:block;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    /* 上下フェード（リール感） */
+    .imgBox::before, .imgBox::after{
+      content:"";
+      position:absolute;
+      left:0; right:0;
+      height:50px;
+      pointer-events:none;
+      z-index:2;
+    }
+    .imgBox::before{
+      top:0;
+      background:linear-gradient(to bottom, rgba(238,246,255,.95), rgba(238,246,255,0));
+    }
+    .imgBox::after{
+      bottom:0;
+      background:linear-gradient(to top, rgba(238,246,255,.95), rgba(238,246,255,0));
+    }
+
+    /* ボタン */
+    .controls{
+      display:flex;
+      justify-content:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .controls button{
+      border:0;
+      border-radius:16px;
+      padding:16px 26px;
+      font-size:22px;
+      font-weight:950;
+      cursor:pointer;
+      color:#fff;
+      min-width:160px;
+      box-shadow:0 6px 14px rgba(0,0,0,.18);
+      transition:transform .12s, opacity .18s, box-shadow .18s;
+    }
+    .controls button:active{transform:translateY(2px);box-shadow:0 3px 8px rgba(0,0,0,.18);}
+    .controls button:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-spin{background:#ff6b6b;}
+    .btn-img {background:#4dabf7;}
+    .btn-next{background:#51cf66;}
+
+    /* スマホ */
+    @media (max-width:640px){
+      :root{ --reel-h:300px; --reel-w:80vw; }
+      .stage{flex-direction:column;align-items:center;gap:18px;min-height:auto;}
+      .reel-cell, .reel .placeholder{font-size:200px;}
+      .imgBox{width:auto;height:380px;}
+      .imgCell{height:380px;}
+      .controls button{font-size:18px;padding:14px 20px;min-width:130px;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+
+      <div class="modes">
+        <button id="modeEasy" class="active" type="button">かんたん</button>
+        <button id="modeHard" type="button">むずかしい</button>
+      </div>
+
+      <div class="stage">
+        <div class="reel" id="reel">
+          <div class="placeholder" id="placeholder">?</div>
+          <div class="reel-track" id="track"></div>
+          <div class="sparkles" id="sparkles"></div>
+        </div>
+        <div class="imgBox show" id="imgBox">
+          <div class="imgPlaceholder">?</div>
+          <div class="imgTrack" id="imgTrack"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-spin" id="btnSpin" type="button">まわす</button>
+        <button class="btn-img"  id="btnImg"  type="button" disabled>がぞう</button>
+        <button class="btn-next" id="btnNext" type="button" disabled>つぎ</button>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const reel        = document.getElementById('reel');
+  const track       = document.getElementById('track');
+  const placeholder = document.getElementById('placeholder');
+  const sparkles    = document.getElementById('sparkles');
+  const imgBox      = document.getElementById('imgBox');
+  const imgTrack    = document.getElementById('imgTrack');
+  const btnSpin     = document.getElementById('btnSpin');
+  const btnImg      = document.getElementById('btnImg');
+  const btnNext     = document.getElementById('btnNext');
+  const modeEasy    = document.getElementById('modeEasy');
+  const modeHard    = document.getElementById('modeHard');
+
+  /* ============ 音（Web Audio API でその場生成） ============ */
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function playTick(){
+    if(!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';   // square より柔らかい
+    osc.frequency.setValueAtTime(1200, t);
+    gain.gain.setValueAtTime(0.05, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.025);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + 0.03);
+  }
+  function playDing(){
+    if(!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    // 二音重ねたベル
+    [880, 1320, 1760].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t0);
+      const peak = 0.25 / (i + 1);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.9);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.95);
+    });
+  }
+  /* ===================================================== */
+
+  /* ============ キラキラエフェクト ============ */
+  function fireSparkles(){
+    sparkles.innerHTML = '';
+    const count = 12;
+    for(let i = 0; i < count; i++){
+      const s = document.createElement('div');
+      s.className = 'spark';
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const dist = 80 + Math.random() * 60;
+      s.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      s.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      s.style.animationDelay = (Math.random() * 0.05) + 's';
+      sparkles.appendChild(s);
+    }
+  }
+  /* ===================================================== */
+
+  const REEL_H = () => reel.clientHeight;  // 1コマ高さ
+
+  let mode = 'easy';
+  let current = null;
+  let lastResult = null;
+  let spinning = false;
+  let imgShown = true;   // 初期から画像エリアは見えている状態
+
+  function pool(){
+    return mode === 'easy' ? [6,7,8,9] : [1,2,3,4,5,6,7,8,9];
+  }
+  function pickNext(){
+    const p = pool();
+    let c = p.filter(v => v !== lastResult);
+    if(c.length === 0) c = p;
+    return c[Math.floor(Math.random()*c.length)];
+  }
+
+  // 1〜9シーケンスをSEQSセット並べる構築ヘルパー（数字／画像で共通）
+  const SEQS = 12;
+  const SEQ = [1,2,3,4,5,6,7,8,9];
+  function computeTargetIndex(target){
+    const lastSeqStart = (SEQS - 1) * SEQ.length;
+    return lastSeqStart + SEQ.indexOf(target);
+  }
+  function buildTrack(target){
+    track.innerHTML = '';
+    for(let s = 0; s < SEQS; s++){
+      for(const n of SEQ){
+        const div = document.createElement('div');
+        div.className = 'reel-cell';
+        div.textContent = n;
+        track.appendChild(div);
+      }
+    }
+    return computeTargetIndex(target);
+  }
+  function buildImgTrack(target){
+    imgTrack.innerHTML = '';
+    for(let s = 0; s < SEQS; s++){
+      for(const n of SEQ){
+        const cell = document.createElement('div');
+        cell.className = 'imgCell';
+        const img = document.createElement('img');
+        img.src = String(n).padStart(2,'0') + '.png';
+        img.alt = '';
+        cell.appendChild(img);
+        imgTrack.appendChild(cell);
+      }
+    }
+    return computeTargetIndex(target);
+  }
+
+  function setMode(m){
+    // モード切替は次回スピンの抽選範囲だけ変える。
+    // 表示中の結果やボタン状態には触らない（がぞうボタンも生かしたまま）。
+    mode = m;
+    modeEasy.classList.toggle('active', m === 'easy');
+    modeHard.classList.toggle('active', m === 'hard');
+  }
+
+  function resetDisplay(){
+    track.innerHTML = '';
+    track.style.transform = 'translateY(0)';
+    track.style.transition = 'none';
+    reel.classList.remove('settled');
+    placeholder.style.display = '';
+    // 画像トラックの中身だけクリア（プレースホルダー"?"が見える）
+    imgTrack.innerHTML = '';
+    imgTrack.style.transform = 'translateY(0)';
+    imgTrack.style.transition = 'none';
+    // 画像ボタンは常に有効（起動直後から押せる）
+    btnImg.disabled = false;
+    btnImg.textContent = imgShown ? 'かくす' : 'がぞう';
+    btnNext.disabled = true;
+    btnSpin.disabled = false;
+    current = null;
+  }
+
+  // 画像トラックに「targetの画像1枚だけ」を静止表示する
+  function showStaticImg(target){
+    imgTrack.innerHTML = '';
+    imgTrack.style.transition = 'none';
+    imgTrack.style.transform = 'translateY(0)';
+    const cell = document.createElement('div');
+    cell.className = 'imgCell';
+    const img = document.createElement('img');
+    img.src = String(target).padStart(2, '0') + '.png';
+    cell.appendChild(img);
+    imgTrack.appendChild(cell);
+  }
+
+  function hideImg(){
+    imgShown = false;
+    imgBox.classList.remove('show');
+    btnImg.textContent = 'がぞう';
+  }
+  function showImg(){
+    imgShown = true;
+    imgBox.classList.add('show');
+    btnImg.textContent = 'かくす';
+    // 結果が出ていればそのカードを表示、なければ "?" プレースホルダーが見える
+    if(current !== null){
+      showStaticImg(current);
+    }
+  }
+  function toggleImg(){ imgShown ? hideImg() : showImg(); }
+
+  function spin(){
+    if(spinning) return;
+    spinning = true;
+    ensureAudio();
+    btnSpin.disabled = true;
+    btnImg.disabled  = true;
+    btnNext.disabled = true;
+    placeholder.style.display = 'none';
+    reel.classList.remove('settled', 'flash');
+    sparkles.innerHTML = '';
+
+    const target = pickNext();
+    const targetIndex = buildTrack(target);
+    const cellH = REEL_H();
+    const finalY = -targetIndex * cellH;
+
+    track.style.transition = 'none';
+    track.style.transform = 'translateY(0)';
+
+    // === 画像オン状態なら、画像トラックも構築して同じスクロール ===
+    const spinImg = imgShown;
+    let imgFinalY = 0;
+    if(spinImg){
+      buildImgTrack(target);
+      const imgCellH = imgBox.clientHeight;  // 各imgCellは imgBox高さに揃えてある
+      imgFinalY = -targetIndex * imgCellH;
+      imgTrack.style.transition = 'none';
+      imgTrack.style.transform = 'translateY(0)';
+    }
+
+    void track.offsetHeight;
+
+    const duration = 1700 + Math.random()*400;
+    const easing = 'cubic-bezier(.22, 1, .36, 1)';
+    track.style.transition = `transform ${duration}ms ${easing}`;
+    track.style.transform = `translateY(${finalY}px)`;
+
+    if(spinImg){
+      imgTrack.style.transition = `transform ${duration}ms ${easing}`;
+      imgTrack.style.transform = `translateY(${imgFinalY}px)`;
+    }
+
+    // ===== 回転中のチック音 =====
+    // 1コマ進むごとに音を鳴らすが、最低 MIN_TICK_INTERVAL_MS は間を空ける。
+    // 序盤は速すぎてつながって聞こえるため、自然に音を間引く。
+    // 終盤の減速時は1コマあたりの時間が長くなり、自然に毎コマ鳴る。
+    const MIN_TICK_INTERVAL_MS = 90;
+    const startTime = performance.now();
+    let lastCellPassed = 0;
+    let lastTickAt = -Infinity;
+    function tickLoop(now){
+      if(!spinning) return;
+      const t = (now - startTime) / duration;
+      if(t >= 1){ return; }
+      const eased = 1 - Math.pow(1 - t, 5);
+      const passed = Math.floor(eased * targetIndex);
+      if(passed > lastCellPassed){
+        if(now - lastTickAt >= MIN_TICK_INTERVAL_MS){
+          playTick();
+          lastTickAt = now;
+        }
+        lastCellPassed = passed;
+      }
+      requestAnimationFrame(tickLoop);
+    }
+    requestAnimationFrame(tickLoop);
+
+    // ===== 終了処理：transitionendで視覚停止の瞬間にピッタリ合わせる =====
+    const onEnd = (e) => {
+      if(e.propertyName !== 'transform') return;
+      track.removeEventListener('transitionend', onEnd);
+
+      // 視覚停止と同じフレームで「カチッ」
+      playTick();
+
+      track.style.transition = 'none';
+      track.style.transform = `translateY(${finalY}px)`;
+      if(spinImg){
+        imgTrack.style.transition = 'none';
+        imgTrack.style.transform = `translateY(${imgFinalY}px)`;
+      }
+
+      current = target;
+      lastResult = target;
+      spinning = false;
+      btnImg.disabled  = false;
+      btnNext.disabled = false;
+      btnSpin.disabled = true;
+
+      // 一拍置いて「チ〜ン♪✨」
+      setTimeout(() => {
+        playDing();
+        fireSparkles();
+        reel.classList.add('flash');
+        setTimeout(() => reel.classList.remove('flash'), 750);
+      }, 220);
+    };
+    track.addEventListener('transitionend', onEnd);
+  }
+
+  btnSpin.addEventListener('click', spin);
+  btnImg.addEventListener('click', toggleImg);
+  btnNext.addEventListener('click', () => {
+    resetDisplay();
+    // 自動で次を回す
+    spin();
+  });
+  modeEasy.addEventListener('click', () => setMode('easy'));
+  modeHard.addEventListener('click', () => setMode('hard'));
+
+  // 初期表示
+  resetDisplay();
+</script>
+</body>
+</html>
