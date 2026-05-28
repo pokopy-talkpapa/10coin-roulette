@@ -252,9 +252,11 @@
     .btn-next{background:#51cf66;}
 
     /* スマホ：縦長画面に収まるよう、リールと画像は横並びのまま圧縮 */
+    /* svh = small viewport height（アドレスバー出てる時の高さ）を使うことで、
+       回転中にバーが伸縮しても --reel-h が動かない＝停止位置がズレない */
     @media (max-width:640px){
       :root{
-        --reel-h: min(48vh, 320px);
+        --reel-h: min(48svh, 320px);
         --reel-w: 40vw;
       }
       .wrap{padding:10px;}
