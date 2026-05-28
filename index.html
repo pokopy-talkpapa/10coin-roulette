@@ -257,8 +257,8 @@
        アドレスバー伸縮で予期せず縦が変わるので使わない */
     @media (max-width:640px){
       :root{
-        --reel-h: 240px;
-        --reel-w: 130px;
+        --reel-h: 380px;
+        --reel-w: 150px;
       }
       .wrap{padding:8px;}
       .panel{padding:12px 8px 14px;border-radius:16px;}
@@ -278,18 +278,31 @@
         box-shadow:inset 0 0 0 4px #ffd166, 0 4px 10px rgba(0,0,0,.08);
         border-radius:16px;
       }
-      .reel-cell{height:var(--reel-h);font-size:110px;}
-      .reel .placeholder{font-size:110px;}
+      .reel-cell{height:var(--reel-h);font-size:130px;}
+      .reel .placeholder{font-size:130px;}
       .imgBox{
         width:var(--reel-w);
         height:var(--reel-h);
         box-shadow:inset 0 0 0 4px #b8d8ff, 0 4px 10px rgba(0,0,0,.08);
         border-radius:16px;
       }
-      .imgCell{height:var(--reel-h);padding:8px 6px;}
+      /* スマホでは imgCell を grid→flex に変更（max-height パーセントを効かせる） */
+      .imgCell{
+        height:var(--reel-h);
+        padding:8px 6px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+      .imgCell img{
+        max-height:100%;
+        max-width:100%;
+        width:auto;
+        height:auto;
+      }
       .imgPlaceholder{font-size:90px;}
       .reel::before, .reel::after,
-      .imgBox::before, .imgBox::after{height:24px;}
+      .imgBox::before, .imgBox::after{height:28px;}
       .controls{gap:6px;}
       .controls button{
         font-size:14px;
