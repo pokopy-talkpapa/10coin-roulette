@@ -251,14 +251,45 @@
     .btn-img {background:#4dabf7;}
     .btn-next{background:#51cf66;}
 
-    /* スマホ */
+    /* スマホ：縦長画面に収まるよう、リールと画像は横並びのまま圧縮 */
     @media (max-width:640px){
-      :root{ --reel-h:300px; --reel-w:80vw; }
-      .stage{flex-direction:column;align-items:center;gap:18px;min-height:auto;}
-      .reel-cell, .reel .placeholder{font-size:200px;}
-      .imgBox{width:auto;height:380px;}
-      .imgCell{height:380px;}
-      .controls button{font-size:18px;padding:14px 20px;min-width:130px;}
+      :root{
+        --reel-h: min(48vh, 320px);
+        --reel-w: 40vw;
+      }
+      .wrap{padding:10px;}
+      .panel{padding:14px 10px 16px;border-radius:18px;}
+      .modes{gap:8px;margin-bottom:10px;}
+      .modes button{padding:7px 16px;font-size:15px;}
+      .stage{
+        flex-direction:row;
+        align-items:flex-start;
+        gap:10px;
+        min-height:auto;
+        margin:6px 0 12px;
+      }
+      .reel{box-shadow:inset 0 0 0 4px #ffd166, 0 4px 10px rgba(0,0,0,.08);border-radius:18px;}
+      .reel-cell, .reel .placeholder{
+        font-size: min(38vw, calc(var(--reel-h) * 0.72));
+      }
+      .imgBox{
+        width:40vw;
+        height:var(--reel-h);
+        box-shadow:inset 0 0 0 4px #b8d8ff, 0 4px 10px rgba(0,0,0,.08);
+        border-radius:18px;
+      }
+      .imgCell{height:var(--reel-h);padding:10px 8px;}
+      .imgPlaceholder{font-size: min(28vw, calc(var(--reel-h) * 0.6));}
+      .reel::before, .reel::after,
+      .imgBox::before, .imgBox::after{height:32px;}
+      .controls{gap:8px;}
+      .controls button{
+        font-size:15px;
+        padding:11px 14px;
+        min-width:0;
+        flex:1 1 0;
+        border-radius:12px;
+      }
     }
   </style>
 </head>
